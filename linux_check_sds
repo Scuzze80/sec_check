@@ -1,0 +1,225 @@
+import paramiko
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from datetime import datetime
+from tqdm import tqdm
+
+# 서버 리스트: [IP, Port, ID, PW, 서버명]
+servers = [
+    ["192.168.6.100", 22, "ian", "8282op82@#", "P2P_web"],
+    ["192.168.6.101", 22, "ian", "8282op82@#", "P2P_DB"],
+    ["192.168.6.130", 22, "ian", "8282op82@#", "AI_demo"],
+    ["192.168.6.131", 24477, "servercheck", "8282op82@#", "search_demo"],
+    ["192.168.6.59", 24477, "servercheck", "8282op82@#", "dockeremrocloud"],
+    ["192.168.6.110", 24477, "servercheck", "8282op82@#", "Poscodx-db"],
+    ["192.168.6.112", 24477, "servercheck", "8282op82@#", "Poscodx-devops"],
+    ["192.168.6.111", 24477, "servercheck", "8282op82@#", "Poscodx-was-1"],
+    ["192.168.6.103", 24477, "servercheck", "8282op82@#", "10.0oracle01"],
+    ["192.168.6.104", 24477, "servercheck", "8282op82@#", "10.0oracle02"],
+    ["192.168.6.11", 22, "servercheck", "8282op82@#", "pi_testserver"],
+    ["192.168.5.135", 24477, "servercheck", "8282op82@#", "V3-server"],
+    ["192.168.6.10", 22, "servercheck", "8282op82@#", "pi_webserver"],
+    ["192.168.6.13", 24477, "servercheck", "8282op82@#", "pi_dockerserver"],
+    ["192.168.6.15", 24477, "servercheck", "8282op82@#", "tcs_dockerserver"],
+    ["192.168.6.14", 24477, "servercheck", "8282op82@#", "SVN_migration"],
+    ["192.168.6.21", 22, "servercheck", "8282op82@#", "R&D_fossology"],
+    ["192.168.6.97", 24477, "servercheck", "8282op82@#", "TCS-supplierpotal-dev"],
+    ["192.168.5.178", 22, "servercheck", "8282op82@#", "pi_bizplay_erp"],
+    ["192.168.5.29", 22, "servercheck", "8282op82@#", "confluence"],
+    ["192.168.6.53", 24477, "ian", "8282op82@#", "cyj-test"],
+    ["192.168.5.55", 24477, "servercheck", "8282op82@#", "emro-dns"],
+    ["192.168.6.55", 24477, "servercheck", "8282op82@#", "epc_P2P"],
+    ["192.168.6.201", 22, "servercheck", "8282op82@#", "fabric-Ubuntu1"],
+    ["192.168.6.202", 22, "servercheck", "8282op82@#", "fabric-Ubuntu2"],
+    ["192.168.6.203", 22, "servercheck", "8282op82@#", "fabric-Ubuntu3"],
+    ["192.168.6.204", 22, "servercheck", "8282op82@#", "fabric-Ubuntu4"],
+    ["192.168.6.205", 22, "servercheck", "8282op82@#", "fabric-Ubuntu5"],
+    ["192.168.5.169", 22, "servercheck", "8282op82@#", "flow_storage"],
+    ["192.168.5.174", 22, "servercheck", "8282op82@#", "flow_batch"],
+    ["192.168.5.172", 22, "servercheck", "8282op82@#", "flow_db1"],
+    ["192.168.5.173", 22, "servercheck", "8282op82@#", "flow_db2"],
+    ["192.168.5.177", 24477, "servercheck", "8282op82@#", "flow_mon"],
+    ["192.168.6.58", 22, "servercheck", "8282op82@#", "nhis"],
+    ["192.168.5.30", 22, "servercheck", "8282op82@#", "pi_jira_db"],
+    ["192.168.6.95", 22, "servercheck", "8282op82@#", "o9_prototype"],
+    ["192.168.6.93", 22, "servercheck", "8282op82@#", "S&C_dev"],
+    ["192.168.6.22", 22, "servercheck", "8282op82@#", "10.0_demo01"],
+    ["192.168.6.23", 24477, "servercheck", "8282op82@#", "10.0_demo02"],
+    ["192.168.6.220", 22, "servercheck", "8282op82@#", "smartx9.0"],
+    ["192.168.5.168", 22, "emro", "emro!))$4004", "pi_SSO"],
+    ["192.168.6.86", 24477, "ian", "8282op82@#", "ubuntu-test"],
+    ["192.168.6.88", 24477, "servercheck", "8282op82@#", "10.0_dev"],
+    ["192.168.5.150", 24477, "servercheck", "8282op82@#", "project-mon"],
+    ["192.168.6.105", 24477, "servercheck", "8282op82@#", "10.0-mysql"],
+    ["192.168.6.185", 24477, "servercheck", "8282op82@#", "Caidentia-Devops"],
+    ["192.168.6.74", 24477, "servercheck", "8282op82@#", "Modine-dev"],
+    ["192.168.6.94", 24477, "servercheck", "8282op82@#", "multirang"],
+    ["192.168.6.116", 24477, "servercheck", "8282op82@#", "Dell-dev-was"],
+    ["192.168.6.117", 24477, "servercheck", "8282op82@#", "Dell-dev-db"],
+    ["192.168.6.118", 24477, "servercheck", "8282op82@#", "Dell-dev-kafka"],
+    ["192.168.6.119", 24477, "servercheck", "8282op82@#", "Dell-dev-CICD"],
+    ["192.168.6.186", 24477, "servercheck", "8282op82@#", "Caidentia-Devops-Nexus"],
+    ["192.168.6.187", 24477, "servercheck", "8282op82@#", "Caidentia-DevOps-SonarQube"],
+    ["192.168.6.188", 24477, "servercheck", "8282op82@#", "Caidentia-DevOps-dev"],
+    ["192.168.6.189", 24477, "servercheck", "8282op82@#", "o9-transfer"],
+    ["192.168.6.73", 24477, "servercheck", "8282op82@#", "modine-tomcat"],
+    ["192.168.6.190", 24477, "servercheck", "8282op82@#", "Caidentia-DevOps-Harbor"],
+    ["192.168.6.191", 24477, "servercheck", "8282op82@#", "plexus-dev"],
+    ["192.168.6.24", 24477, "servercheck", "8282op82@#", "10.0-demo3"],
+    ["192.168.6.113", 24477, "servercheck", "8282op82@#", "emrocloud2.0-domain"],
+    ["192.168.6.114", 24477, "servercheck", "8282op82@#", "emrocloud2.0-admin"],
+    ["192.168.6.115", 24477, "servercheck", "8282op82@#", "emrocloud2.0-db"],
+    ["192.168.6.132", 24477, "servercheck", "8282op82@#", "search-demo"],
+    ["192.168.6.192", 24477, "servercheck", "8282op82@#", "caidentia-jenkins"],
+    ["192.168.6.120", 24477, "servercheck", "8282op82@#", "emrocloud2.0-db-replica"],
+    ["192.168.6.159", 24477, "servercheck", "8282op82@#", "framework-license"],
+    ["192.168.6.157", 24477, "servercheck", "8282op82@#", "smartgrid-prod"],
+    ["192.168.6.156", 24477, "servercheck", "8282op82@#", "combine-demo"],
+    ["192.168.6.193", 24477, "servercheck", "8282op82@#", "caidentia-integration-demo"],
+    ["192.168.6.194", 24477, "servercheck", "8282op82@#", "caidentia-integration-jenkins"],
+    ["175.124.141.229", 22, "servercheck", "8282op82@#", "risk-manage-hynix"],
+    ["175.124.141.236", 22, "servercheck", "8282op82@#", "gitlab"],
+    ["175.124.141.237", 22, "servercheck", "8282op82@#", "flow-was1"],
+    ["175.124.141.238", 22, "servercheck", "8282op82@#", "flow-was2"],
+    ["175.124.141.240", 22, "servercheck", "8282op82@#", "jira"],
+    ["175.124.141.245", 22, "servercheck", "8282op82@#", "crinity-mail"]]
+
+# run_check_script 내부에서 echo 줄을 직접 조합
+def run_check_script(ip, port, user, pw, server_name):
+    try:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(ip, port=port, username=user, password=pw, timeout=10)
+
+        script_path = "/tmp/linux_scan.sh"
+
+        scan_script = f'''#!/bin/bash
+echo "Linux Virus Scanner ... V3.0"
+echo "실행 서버: {server_name} ({ip})"
+
+START_TIME=$(date +%s)
+
+check_md5_hash()
+{{
+    local MALWARE_MD5_LIST=("$@")
+    DIRS=("/bin" "/tmp" "/var" "/dev" "/usr" "/etc" "/home")
+
+    for dir in "${{DIRS[@]}}"; do
+        find "$dir" -type f 2>/dev/null | while read -r file; do
+            if head -c 4 "$file" | grep -q $'\\x7fELF'; then
+                file_hash=$(md5sum "$file" | awk '{{print $1}}')
+                for Virus_Hash in "${{MALWARE_MD5_LIST[@]}}"; do
+                    if [ "$Virus_Hash" == "$file_hash" ]; then
+                        echo "[VIRUS] $file"
+                        break
+                    fi
+                done
+            fi
+        done
+    done
+}}
+
+IOC_MD5=(
+    "b286aba591ded0522593ad487b8cfc8f"
+    "2dad1e911051d79fc61e5fea31c7ace2"
+    "4bf0436e441e534d9f403519a891729d"
+    "02214a541b660b6c3270296296f43e43"
+    "5482d40922ec2ee7d8e4f9019465ba5f"
+    "d1898f48104a2c63f60ab2cb3a139689"
+    "8f05657f0bd8f4eb60fba59cc94fe189"
+    "a8c54d5b028714be5fdf363957ab8de2"
+    "7af0e479e50cf2f1c8256f7431b7e0c3"
+    "696780490e390c6a15fc5a5d9536449c"
+    "9c919522946ac18f23267e238b470f98"
+    "98da33caa7627ff17b909dc162ba8e6f"
+)
+
+echo -e  "\\n2025.07.10 리눅스기반 악성코드 파일 검사"
+output=$(check_md5_hash "${{IOC_MD5[@]}}")
+
+if [ -z "$output" ]; then
+    echo "정상: 의심되는 파일 없음"
+else
+    echo "의심: 의심되는 파일 발견"
+    printf '%s\\n' "$output"
+fi
+
+END_TIME=$(date +%s)
+EXECUTION_TIME=$((END_TIME - START_TIME))
+
+echo "점검 실행 시간 : ${{EXECUTION_TIME}}초"
+echo -e "\\n점검 완료"
+'''
+
+        # 전송 및 실행
+        sftp = ssh.open_sftp()
+        with sftp.file(script_path, 'w') as f:
+            f.write(scan_script)
+        sftp.chmod(script_path, 0o755)
+        sftp.close()
+
+        stdin, stdout, stderr = ssh.exec_command(f"bash {script_path}")
+        output = stdout.read().decode()
+        error = stderr.read().decode()
+        ssh.close()
+
+        return output if output else error
+    except Exception as e:
+        return f"[ERROR] {e}"
+
+# Excel 결과 저장
+def save_to_excel(results):
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
+
+    header_fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
+    header_font = Font(bold=True)
+    center_align = Alignment(horizontal="center", vertical="center")
+    left_align = Alignment(horizontal="left", vertical="center")
+    virus_font = Font(color="FF0000")
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+
+    for server_name, result_text in results.items():
+        sheet = wb.create_sheet(title=server_name[:31])
+        sheet.append(["점검 결과"])
+        virus_detected = False
+
+        for line in result_text.strip().splitlines():
+            sheet.append([line])
+
+        sheet.column_dimensions['A'].width = 40
+
+        for row in sheet.iter_rows():
+            for cell in row:
+                cell.border = thin_border
+                if cell.row == 1:
+                    cell.fill = header_fill
+                    cell.font = header_font
+                    cell.alignment = center_align
+                else:
+                    cell.alignment = left_align
+                    if '[VIRUS]' in str(cell.value):
+                        cell.font = virus_font
+                        virus_detected = True
+
+        if virus_detected:
+            sheet.sheet_properties.tabColor = "FF0000"
+
+    filename = f"Linux_Virus_Scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    wb.save(filename)
+    print(f"\n✅ 점검 완료! 결과 저장: {filename}")
+
+# 실행부
+if __name__ == "__main__":
+    results = {}
+
+    print("\n🔍 리눅스 서버 악성코드 점검을 시작합니다...\n")
+
+    for ip, port, user, pw, name in tqdm(servers, desc="진행률", unit="server"):
+        result = run_check_script(ip, port, user, pw, name)
+        results[name] = result
+
+    save_to_excel(results)
